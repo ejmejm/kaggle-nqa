@@ -736,8 +736,17 @@ def convert_single_example(example, tokenizer, is_training):
         start_position = tok_start_position - doc_start + doc_offset
         end_position = tok_end_position - doc_start + doc_offset
         answer_type = example.answer.type
+        
+      answer_tokens = []
+      for t in tokens[start_position:(end_position + 1)]:
+        if isinstance(t, str):
+          answer_tokens.append(t)
+        elif isinstance(t, bytes):
+          answer_tokens.append(t.decode('UTF-8'))
+        else:
+          raise ValueError(f'Cannot have a token on type {type(t)}!')
 
-      answer_text = " ".join(tokens[start_position:(end_position + 1)])
+      answer_text = " ".join(answer_tokens)
 
     feature = InputFeatures(
         unique_id=-1,
@@ -783,8 +792,14 @@ def tokenize(tokenizer, text, apply_basic_tokenization=False):
   if apply_basic_tokenization:
     tokenize_fn = tokenizer.basic_tokenizer.tokenize
   tokens = []
+
+  # Whether or not we are using a sentencepiece tokenizer
+  use_sp = False
+  if hasattr(tokenizer, 'sp_model'):
+    use_sp = True
+
   for token in text.split(" "):
-    if _SPECIAL_TOKENS_RE.match(token):
+    if not use_sp and _SPECIAL_TOKENS_RE.match(token):
       if token in tokenizer.vocab:
         tokens.append(token)
       else:
