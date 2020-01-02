@@ -749,7 +749,7 @@ def convert_single_example(example, tokenizer, is_training):
         elif isinstance(t, bytes):
           answer_tokens.append(t.decode('UTF-8'))
         else:
-          raise ValueError(f'Cannot have a token on type {type(t)}!')
+          raise ValueError('Cannot have a token on type {}!'.format(type(t)))
 
       answer_text = " ".join(answer_tokens)
 
