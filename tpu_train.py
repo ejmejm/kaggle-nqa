@@ -458,13 +458,13 @@ if FLAGS.use_tpu:
         tpu=FLAGS.tpu_name,
         zone=FLAGS.tpu_zone,
         project=FLAGS.gcp_project)
-    tf.config.experimental_connect_to_host(resolver.master())
+    tf.config.experimental_connect_to_cluster(resolver)
     tf.tpu.experimental.initialize_tpu_system(resolver)
     strategy = tf.distribute.experimental.TPUStrategy(resolver)
 
-    with strategy.scope():
-        model = build_model(FLAGS.model, FLAGS.config_file)
-        compile_model(model=model,
+    strategy.scope().__enter__()
+    model = build_model(FLAGS.model, FLAGS.config_file)
+    compile_model(model=model,
                     model_type=FLAGS.model,
                     learning_rate=FLAGS.learning_rate,
                     num_train_steps=num_train_steps,
@@ -563,6 +563,7 @@ if not os.path.exists(FLAGS.output_dir):
 H = model.fit_generator(data_generator({'batch_size': FLAGS.train_batch_size}),
                         steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
                         epochs=FLAGS.num_train_epochs,
-                        callbacks=[ckpt_callback, tensorboard_callback])
+                        callbacks=[ckpt_callback])
 
-model.save_wieghts(os.path.join(FLAGS.output_dir, FLAGS.model + '_final_model.h5'))
+model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.model + '_final_model.h5'))
+strategy.scope.__exit__()

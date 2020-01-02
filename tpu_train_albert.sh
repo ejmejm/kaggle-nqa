@@ -1,6 +1,6 @@
 export STORAGE_BUCKET=gs://nqa-data
 export DATA_DIR="$STORAGE_BUCKET/data"
-export MODELS_DIR="$STORAGE_BUCKET"
+export MODELS_DIR="models/"
 export ALBERT_SIZE="xxl"
 
 python3 tpu_train.py \
