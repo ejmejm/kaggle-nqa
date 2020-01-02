@@ -1,8 +1,9 @@
-export DATA_DIR="data"
-export MODELS_DIR="models"
+export STORAGE_BUCKET=gs://nqa-data
+export DATA_DIR="$STORAGE_BUCKET/data"
+export MODELS_DIR="$STORAGE_BUCKET"
 export ALBERT_SIZE="xxl"
 
-python tpu_train.py \
+python3 tpu_train.py \
 --model="albert" \
 --config_file="$MODELS_DIR/albert_$ALBERT_SIZE/config.json" \
 --vocab_file="$MODELS_DIR/albert_$ALBERT_SIZE/vocab/modified-30k-clean.model" \
@@ -21,6 +22,6 @@ python tpu_train.py \
 --train_file="$DATA_DIR/simplified-nq-train.jsonl" \
 --albert_pretrain_checkpoint="$MODELS_DIR/albert_$ALBERT_SIZE/tf2_model.h5" \
 --use_tpu=True \
---tpu_name="" \
+--tpu_name=$TPU_NAME \
 --tpu_zone="us-central1-f" \
 --gcp_project="nqa-tpu-training"
