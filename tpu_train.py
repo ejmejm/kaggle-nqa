@@ -453,116 +453,116 @@ num_train_steps = int(num_train_features / FLAGS.train_batch_size *
 num_warmup_steps = int(num_train_steps * FLAGS.warmup_proportion)
 
 
-# if FLAGS.use_tpu:
-resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
-    tpu=FLAGS.tpu_name,
-    zone=FLAGS.tpu_zone,
-    project=FLAGS.gcp_project)
-tf.config.experimental_connect_to_cluster(resolver)
-tf.tpu.experimental.initialize_tpu_system(resolver)
-strategy = tf.distribute.experimental.TPUStrategy(resolver)
+if FLAGS.use_tpu:
+    resolver = tf.distribute.cluster_resolver.TPUClusterResolver(
+        tpu=FLAGS.tpu_name,
+        zone=FLAGS.tpu_zone,
+        project=FLAGS.gcp_project)
+    tf.config.experimental_connect_to_cluster(resolver)
+    tf.tpu.experimental.initialize_tpu_system(resolver)
+    strategy = tf.distribute.experimental.TPUStrategy(resolver)
 
-with strategy.scope():
+    with strategy.scope():
+        model = build_model(FLAGS.model, FLAGS.config_file)
+        compile_model(model=model,
+                        model_type=FLAGS.model,
+                        learning_rate=FLAGS.learning_rate,
+                        num_train_steps=num_train_steps,
+                        num_warmup_steps=num_warmup_steps,
+                        init_checkpoint=FLAGS.albert_pretrain_checkpoint)
+else:
     model = build_model(FLAGS.model, FLAGS.config_file)
     compile_model(model=model,
-                    model_type=FLAGS.model,
-                    learning_rate=FLAGS.learning_rate,
-                    num_train_steps=num_train_steps,
-                    num_warmup_steps=num_warmup_steps,
-                    init_checkpoint=FLAGS.albert_pretrain_checkpoint)
-    # else:
-    #     model = build_model(FLAGS.model, FLAGS.config_file)
-    #     compile_model(model=model,
-    #                 model_type=FLAGS.model,
-    #                 learning_rate=FLAGS.learning_rate,
-    #                 num_train_steps=num_train_steps,
-    #                 num_warmup_steps=num_warmup_steps,
-    #                 init_checkpoint=FLAGS.albert_pretrain_checkpoint)
+                model_type=FLAGS.model,
+                learning_rate=FLAGS.learning_rate,
+                num_train_steps=num_train_steps,
+                num_warmup_steps=num_warmup_steps,
+                init_checkpoint=FLAGS.albert_pretrain_checkpoint)
 
-    print('Model generated.')
-    model.summary()
+print('Model generated.')
+model.summary()
 
-    ### Create Generator for Training Data ###
+### Create Generator for Training Data ###
 
-    train_filenames = tf.io.gfile.glob(FLAGS.train_precomputed_file)
+train_filenames = tf.io.gfile.glob(FLAGS.train_precomputed_file)
 
-    name_to_features = {
-        "unique_ids": tf.io.FixedLenFeature([], tf.int64),
-        "input_ids": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
-        "input_mask": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
-        "segment_ids": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
-    }
+name_to_features = {
+    "unique_ids": tf.io.FixedLenFeature([], tf.int64),
+    "input_ids": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
+    "input_mask": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
+    "segment_ids": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
+}
+if FLAGS.do_train:
+    name_to_features["start_positions"] = tf.io.FixedLenFeature([], tf.int64)
+    name_to_features["end_positions"] = tf.io.FixedLenFeature([], tf.int64)
+    name_to_features["answer_types"] = tf.io.FixedLenFeature([], tf.int64)
+
+def decode_record(record, name_to_features):
+    """Decodes a record to a TensorFlow example."""
+    example = tf.io.parse_single_example(serialized=record, features=name_to_features)
+
+    # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
+    # So cast all int64 to int32.
+    for name in list(example.keys()):
+        t = example[name]
+        if t.dtype == tf.int64:
+            t = tf.cast(t, dtype=tf.int32)
+        example[name] = t
+
+    return example
+
+def data_generator(params):
+    """The actual input function."""
+    batch_size = params["batch_size"]
+    if 'seed' not in params:
+        params['seed'] = 42
+
+    # For training, we want a lot of parallel reading and shuffling.
+    # For eval, we want no shuffling and parallel reading doesn't matter.
+    dataset = tf.data.TFRecordDataset(train_filenames)
     if FLAGS.do_train:
-        name_to_features["start_positions"] = tf.io.FixedLenFeature([], tf.int64)
-        name_to_features["end_positions"] = tf.io.FixedLenFeature([], tf.int64)
-        name_to_features["answer_types"] = tf.io.FixedLenFeature([], tf.int64)
-
-    def decode_record(record, name_to_features):
-        """Decodes a record to a TensorFlow example."""
-        example = tf.io.parse_single_example(serialized=record, features=name_to_features)
-
-        # tf.Example only supports tf.int64, but the TPU only supports tf.int32.
-        # So cast all int64 to int32.
-        for name in list(example.keys()):
-            t = example[name]
-            if t.dtype == tf.int64:
-                t = tf.cast(t, dtype=tf.int32)
-            example[name] = t
-
-        return example
-
-    def data_generator(params):
-        """The actual input function."""
-        batch_size = params["batch_size"]
-        if 'seed' not in params:
-            params['seed'] = 42
-
-        # For training, we want a lot of parallel reading and shuffling.
-        # For eval, we want no shuffling and parallel reading doesn't matter.
-        dataset = tf.data.TFRecordDataset(train_filenames)
-        if FLAGS.do_train:
-            dataset = dataset.repeat()
-            dataset = dataset.shuffle(buffer_size=5000, seed=params['seed'])
-            
-        dataset = dataset.map(lambda r: decode_record(r, name_to_features))
-        dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
+        dataset = dataset.repeat()
+        dataset = dataset.shuffle(buffer_size=5000, seed=params['seed'])
         
-        data_iter = iter(dataset)
-        for examples in data_iter:
-            inputs = {
-                # 'unique_id': examples['unique_ids'],
-                'input_ids': examples['input_ids'],
-                'input_mask': examples['input_mask'],
-                'segment_ids': examples['segment_ids']
-            }
+    dataset = dataset.map(lambda r: decode_record(r, name_to_features))
+    dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
+    
+    data_iter = iter(dataset)
+    for examples in data_iter:
+        inputs = {
+            # 'unique_id': examples['unique_ids'],
+            'input_ids': examples['input_ids'],
+            'input_mask': examples['input_mask'],
+            'segment_ids': examples['segment_ids']
+        }
 
-            targets = {
-                'tf_op_layer_start_logits': examples['start_positions'],
-                'tf_op_layer_end_logits': examples['end_positions'],
-                'ans_type_logits': examples['answer_types'],
-            }
+        targets = {
+            'tf_op_layer_start_logits': examples['start_positions'],
+            'tf_op_layer_end_logits': examples['end_positions'],
+            'ans_type_logits': examples['answer_types'],
+        }
 
-            yield inputs, targets
+        yield inputs, targets
 
-    # Create training callbacks
-    ckpt_callback = tf.keras.callbacks.ModelCheckpoint(
-        os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file), monitor='val_acc', verbose=0, save_best_only=True,
-        save_weights_only=True, mode='max', save_freq=FLAGS.save_checkpoints_steps)
+# Create training callbacks
+ckpt_callback = tf.keras.callbacks.ModelCheckpoint(
+    os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file), monitor='val_acc', verbose=0, save_best_only=True,
+    save_weights_only=True, mode='max', save_freq=FLAGS.save_checkpoints_steps)
 
-    tensorboard_callback = tf.keras.callbacks.TensorBoard(
-        log_dir=FLAGS.log_dir, update_freq=FLAGS.log_freq)
+tensorboard_callback = tf.keras.callbacks.TensorBoard(
+    log_dir=FLAGS.log_dir, update_freq=FLAGS.log_freq)
 
-    if not os.path.exists(FLAGS.log_dir):
-        os.makedirs(FLAGS.log_dir)
+if not os.path.exists(FLAGS.log_dir):
+    os.makedirs(FLAGS.log_dir)
 
-    if not os.path.exists(FLAGS.output_dir):
-        os.makedirs(FLAGS.output_dir)
+if not os.path.exists(FLAGS.output_dir):
+    os.makedirs(FLAGS.output_dir)
 
-    ### Train the Model ###
+### Train the Model ###
 
-    H = model.fit_generator(data_generator({'batch_size': FLAGS.train_batch_size}),
-                            steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
-                            epochs=FLAGS.num_train_epochs,
-                            callbacks=[ckpt_callback])
+H = model.fit_generator(data_generator({'batch_size': FLAGS.train_batch_size}),
+                        steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
+                        epochs=FLAGS.num_train_epochs,
+                        callbacks=[ckpt_callback])
 
-    model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.model + '_final_model.h5'))
+model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.model + '_final_model.h5'))
