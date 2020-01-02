@@ -303,17 +303,17 @@ def token_to_char_offset(e, candidate_idx, token_idx):
 def get_candidate_type(e, idx):
   """Returns the candidate's type: Table, Paragraph, List or Other."""
   c = e["long_answer_candidates"][idx]
-  first_token = e["document_tokens"][c["start_token"]]["token"]
-  if first_token == "<Table>":
+  first_token = e["document_tokens"][c["start_token"]]["token"].lower()
+  if first_token == "<table>":
     return "Table"
-  elif first_token == "<P>":
+  elif first_token == "<p>":
     return "Paragraph"
-  elif first_token in ("<Ul>", "<Dl>", "<Ol>"):
+  elif first_token in ("<ul>", "<dl>", "<ol>"):
     return "List"
-  elif first_token in ("<Tr>", "<Li>", "<Dd>", "<Dt>"):
+  elif first_token in ("<tr>", "<li>", "<dd>", "<dt>"):
     return "Other"
   else:
-    absl.logging.warning("Unknoww candidate type found: %s", first_token)
+    absl.logging.warning("Unknown candidate type found: %s", first_token)
     return "Other"
 
 
@@ -353,9 +353,14 @@ def candidates_iter(e):
     yield idx, c
 
 
-def create_example_from_jsonl(line):
+def create_example_from_jsonl(line, lowercase=False):
   """Creates an NQ example from a given line of JSON."""
   e = json.loads(line, object_pairs_hook=collections.OrderedDict)
+
+  # Added by Edan to support all lowercase for ALBERT 
+  if lowercase:
+    e["document_text"] = e["document_text"].lower()
+    
   document_tokens = e["document_text"].split(" ")
   e["document_tokens"] = []
   for token in document_tokens:
@@ -799,9 +804,11 @@ def tokenize(tokenizer, text, apply_basic_tokenization=False):
     use_sp = True
 
   for token in text.split(" "):
-    if not use_sp and _SPECIAL_TOKENS_RE.match(token):
+    if _SPECIAL_TOKENS_RE.match(token):
       if token in tokenizer.vocab:
         tokens.append(token)
+      elif use_sp:
+        tokens.extend(tokenize_fn(token))
       else:
         tokens.append(tokenizer.wordpiece_tokenizer.unk_token)
     else:

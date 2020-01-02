@@ -119,6 +119,37 @@ def encode_pieces(sp_model, text, return_unicode=True, sample=False):
     pieces = sp_model.EncodeAsPieces(text)
   else:
     pieces = sp_model.SampleEncodeAsPieces(text, 64, 0.1)
+  
+  # Added by Edan to account for special token (i.e. [Q], [UNK])
+  new_pieces = []
+  buffer = []
+  for piece in pieces:
+    if piece.startswith('▁['):
+      new_pieces.extend(buffer)
+      buffer = []
+      buffer.append(piece)
+    elif piece.endswith(']'):
+      if len(buffer) == 0:
+        new_pieces.append(piece)
+      else:
+        buffer.append(piece)
+        spec_token = ''.join(buffer)
+        spec_token = spec_token[1:]
+        new_pieces.append('▁')
+        new_pieces.append(spec_token)   
+        buffer = []
+    else:
+      if len(buffer) == 0:
+        new_pieces.append(piece)
+      elif '▁' in piece:
+        new_pieces.extend(buffer)
+        buffer = []
+        new_pieces.append(piece)
+      else:
+        buffer.append(piece)
+        
+  pieces = new_pieces
+
   new_pieces = []
   for piece in pieces:
     piece = printable_text(piece)
