@@ -509,19 +509,23 @@ def decode_record(record, name_to_features):
             t = tf.cast(t, dtype=tf.int32)
         example[name] = t
 
-    inputs = {
+    # example['tf_op_layer_start_logits'] = example['start_positions'],
+    # example['tf_op_layer_end_logits'] = example['end_positions'],
+    # example['ans_type_logits'] = example['answer_types']
+
+
+    output = ({
         'input_ids': example['input_ids'],
         'input_mask': example['input_mask'],
         'segment_ids': example['segment_ids']
-    }
-
-    targets = {
+    },
+    {
         'tf_op_layer_start_logits': example['start_positions'],
         'tf_op_layer_end_logits': example['end_positions'],
-        'ans_type_logits': example['answer_types'],
-    }
+        'ans_type_logits': example['answer_types']
+    })
 
-    return inputs, targets
+    return output
 
     # return example
 
@@ -538,11 +542,10 @@ def data_generator(params):
     if FLAGS.do_train:
         dataset = dataset.repeat()
         dataset = dataset.shuffle(buffer_size=5000, seed=params['seed'])
-        
-    dataset = dataset.map(lambda r: decode_record(r, name_to_features))
+
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
     dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
-    
+
     return dataset
     # data_iter = iter(dataset)
     # for examples in data_iter:

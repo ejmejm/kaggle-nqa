@@ -16,7 +16,7 @@ python3 tpu_train.py \
 --log_freq=256 \
 --do_train=True \
 --do_predict=False \
---train_batch_size=1 \
+--train_batch_size=16 \
 --learning_rate=5e-5 \
 --num_train_epochs=3 \
 --train_file="$DATA_DIR/simplified-nq-train.jsonl" \
