@@ -547,17 +547,18 @@ def data_generator(params):
 # https://stackoverflow.com/questions/49127214/keras-how-to-output-learning-rate-onto-tensorboard
 class CustomTensorBoard(tf.keras.callbacks.TensorBoard):
     def __init__(self, log_dir, update_freq, **kwargs):
+        self._n_curr_samples = 0
         super().__init__(log_dir=log_dir, update_freq=update_freq, **kwargs)
 
     def on_batch_end(self, batch, logs=None):
         logs = logs or {}
 
         n_steps = self._total_batches_seen + 1
-        samples_seen = self._samples_seen + logs.get('size', 1)
-        samples_seen_since = samples_seen - self._samples_seen_at_last_write
-
-        if self.update_freq != 'epoch' and samples_seen_since >= self.update_freq:
+        self._n_curr_samples += logs.get('size', 1)
+        
+        if self.update_freq != 'epoch' and self._n_curr_samples >= self.update_freq:
             logs.update({'lr': model.optimizer.lr(n_steps).numpy()})
+            self._n_curr_samples = 0
         super().on_batch_end(batch, logs)
 
 # Create training callbacks
