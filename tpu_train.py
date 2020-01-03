@@ -559,7 +559,7 @@ class CustomTensorBoard(tf.keras.callbacks.TensorBoard):
         samples_seen_since = samples_seen - self._samples_seen_at_last_write
 
         if self.update_freq != 'epoch' and samples_seen_since >= self.update_freq:
-            logs.update({'lr_s': model.optimizer.lr(n_steps).numpy()})
+            logs.update({'lr': model.optimizer.lr(n_steps).numpy()})
         super().on_batch_end(batch, logs)
 
 # Create training callbacks
