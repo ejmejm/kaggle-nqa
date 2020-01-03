@@ -15,12 +15,12 @@ python3 tpu_train.py \
 --log_freq=16 \
 --do_train=True \
 --do_predict=False \
---train_batch_size=64 \
+--train_batch_size=32 \
 --learning_rate=5e-5 \
 --num_train_epochs=3 \
 --train_file="$DATA_DIR/simplified-nq-train.jsonl" \
 --init_checkpoint="$MODELS_DIR/bert_joint_baseline/tf2_bert_joint.ckpt" \
---use_tpu=False \
+--use_tpu=True \
 --tpu_name=$TPU_NAME \
 --tpu_zone="europe-west4-a" \
 --gcp_project="nqa-tpu-training"
