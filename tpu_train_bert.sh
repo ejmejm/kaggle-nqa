@@ -19,7 +19,7 @@ python3 tpu_train.py \
 --learning_rate=5e-5 \
 --num_train_epochs=3 \
 --train_file="$DATA_DIR/simplified-nq-train.jsonl" \
---bert_init_checkpoint="$MODELS_DIR/bert_joint_baseline/tf2_bert_joint.ckpt" \
+--init_checkpoint="$MODELS_DIR/bert_joint_baseline/tf2_bert_joint.ckpt" \
 --use_tpu=False \
 --tpu_name=$TPU_NAME \
 --tpu_zone="europe-west4-a" \

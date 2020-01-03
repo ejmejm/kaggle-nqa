@@ -66,7 +66,7 @@ flags.DEFINE_integer(
     "How many samples between each training log update.")
 
 flags.DEFINE_string(
-    "bert_init_checkpoint", "models/bert_joint_baseline/tf2_bert_joint.ckpt",
+    "init_checkpoint", "models/bert_joint_baseline/tf2_bert_joint.ckpt",
     "Initial checkpoint (usually from a pre-trained BERT model).")
 
 flags.DEFINE_bool(
@@ -182,10 +182,6 @@ flags.DEFINE_integer(
 flags.DEFINE_string(
     "train_file", "data/simplified-nq-train.jsonl",
     "NQ json for training. E.g., dev-v1.1.jsonl.gz or test-v1.1.jsonl.gz")
-
-flags.DEFINE_string(
-    "albert_pretrain_checkpoint", "models/albert_xxl/tf2_model.h5",
-    "Pretrain checkpoint (for Albert only).")
 
 ## Special flags - do not change
 
@@ -469,7 +465,7 @@ if FLAGS.use_tpu:
                         learning_rate=FLAGS.learning_rate,
                         num_train_steps=num_train_steps,
                         num_warmup_steps=num_warmup_steps,
-                        init_checkpoint=FLAGS.albert_pretrain_checkpoint)
+                        init_checkpoint=FLAGS.init_checkpoint)
 else:
     model = build_model(FLAGS.model, FLAGS.config_file)
     compile_model(model=model,
@@ -477,7 +473,7 @@ else:
                 learning_rate=FLAGS.learning_rate,
                 num_train_steps=num_train_steps,
                 num_warmup_steps=num_warmup_steps,
-                init_checkpoint=FLAGS.albert_pretrain_checkpoint)
+                init_checkpoint=FLAGS.init_checkpoint)
 
 print('Model generated.')
 model.summary()

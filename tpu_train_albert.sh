@@ -20,7 +20,7 @@ python3 tpu_train.py \
 --learning_rate=5e-5 \
 --num_train_epochs=3 \
 --train_file="$DATA_DIR/simplified-nq-train.jsonl" \
---albert_pretrain_checkpoint="$MODELS_DIR/albert_$ALBERT_SIZE/tf2_model.h5" \
+--init_checkpoint="$MODELS_DIR/albert_$ALBERT_SIZE/tf2_model.h5" \
 --use_tpu=True \
 --tpu_name=$TPU_NAME \
 --tpu_zone="us-central1-f" \
