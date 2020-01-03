@@ -560,7 +560,7 @@ if not os.path.exists(FLAGS.output_dir):
 
 ### Train the Model ###
 
-H = model.fit_generator(data_generator({'batch_size': FLAGS.train_batch_size}),
+H = model.fit(x=data_generator({'batch_size': FLAGS.train_batch_size}),
                         steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
                         epochs=FLAGS.num_train_epochs,
                         callbacks=[ckpt_callback])
