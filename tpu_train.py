@@ -221,8 +221,6 @@ if FLAGS.do_train and FLAGS.train_num_precomputed != n_records:
     print('Changing the number of precomuted records listed to use all avaliable data.')
     FLAGS.train_num_precomputed = n_records
 
-FLAGS.train_num_precomputed = 50
-
 ### Define Functions to Build the Model ###
 
 class TDense(tf.keras.layers.Layer):

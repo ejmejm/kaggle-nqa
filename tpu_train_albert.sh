@@ -12,7 +12,7 @@ python3 tpu_train.py \
 --train_num_precomputed=-1 \
 --output_checkpoint_file="albert_finetuned.h5" \
 --save_checkpoints_steps=15000 \
---log_dir=gs://tmp-log-data \
+--log_dir=gs://tmp-log-data/albert-logs/ \
 --log_freq=128 \
 --do_train=True \
 --do_predict=False \
