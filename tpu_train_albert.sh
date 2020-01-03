@@ -13,11 +13,11 @@ python3 tpu_train.py \
 --output_checkpoint_file="albert_finetuned.h5" \
 --save_checkpoints_steps=15000 \
 --log_dir=gs://tmp-log-data/albert-logs/ \
---log_freq=128 \
+--log_freq=16 \
 --do_train=True \
 --do_predict=False \
 --train_batch_size=16 \
---learning_rate=5e-5 \
+--learning_rate=2.5e-5 \
 --num_train_epochs=3 \
 --train_file="$DATA_DIR/simplified-nq-train.jsonl" \
 --init_checkpoint="$MODELS_DIR/albert_$ALBERT_SIZE/tf2_model.h5" \

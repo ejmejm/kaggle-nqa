@@ -12,7 +12,7 @@ python3 tpu_train.py \
 --output_checkpoint_file="bert_finetuned.h5" \
 --save_checkpoints_steps=15000 \
 --log_dir=gs://tmp-log-data/bert-logs \
---log_freq=256 \
+--log_freq=16 \
 --do_train=True \
 --do_predict=False \
 --train_batch_size=64 \
