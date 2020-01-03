@@ -509,10 +509,25 @@ def decode_record(record, name_to_features):
             t = tf.cast(t, dtype=tf.int32)
         example[name] = t
 
-    return example
+    inputs = {
+        'input_ids': example['input_ids'],
+        'input_mask': example['input_mask'],
+        'segment_ids': example['segment_ids']
+    }
+
+    targets = {
+        'tf_op_layer_start_logits': example['start_positions'],
+        'tf_op_layer_end_logits': example['end_positions'],
+        'ans_type_logits': example['answer_types'],
+    }
+
+    return inputs, targets
+
+    # return example
 
 def data_generator(params):
     """The actual input function."""
+
     batch_size = params["batch_size"]
     if 'seed' not in params:
         params['seed'] = 42
@@ -525,9 +540,10 @@ def data_generator(params):
         dataset = dataset.shuffle(buffer_size=5000, seed=params['seed'])
         
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
+    dataset = dataset.map(lambda r: decode_record(r, name_to_features))
     dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
     
-    return iter(dataset)
+    return dataset
     # data_iter = iter(dataset)
     # for examples in data_iter:
     #     inputs = {
