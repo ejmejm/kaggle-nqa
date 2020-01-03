@@ -11,9 +11,9 @@ python3 tpu_train.py \
 --train_precomputed_file="$DATA_DIR/albert_train_small.tf_record" \
 --train_num_precomputed=-1 \
 --output_checkpoint_file="albert_finetuned.h5" \
---save_checkpoints_steps=25000 \
---log_dir="logs/" \
---log_freq=256 \
+--save_checkpoints_steps=15000 \
+--log_dir=gs://tmp-log-data \
+--log_freq=128 \
 --do_train=True \
 --do_predict=False \
 --train_batch_size=16 \

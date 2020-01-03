@@ -509,11 +509,6 @@ def decode_record(record, name_to_features):
             t = tf.cast(t, dtype=tf.int32)
         example[name] = t
 
-    # example['tf_op_layer_start_logits'] = example['start_positions'],
-    # example['tf_op_layer_end_logits'] = example['end_positions'],
-    # example['ans_type_logits'] = example['answer_types']
-
-
     output = ({
         'input_ids': example['input_ids'],
         'input_mask': example['input_mask'],
@@ -526,8 +521,6 @@ def decode_record(record, name_to_features):
     })
 
     return output
-
-    # return example
 
 def data_generator(params):
     """The actual input function."""
@@ -547,33 +540,17 @@ def data_generator(params):
     dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
 
     return dataset
-    # data_iter = iter(dataset)
-    # for examples in data_iter:
-    #     inputs = {
-    #         # 'unique_id': examples['unique_ids'],
-    #         'input_ids': examples['input_ids'],
-    #         'input_mask': examples['input_mask'],
-    #         'segment_ids': examples['segment_ids']
-    #     }
-
-    #     targets = {
-    #         'tf_op_layer_start_logits': examples['start_positions'],
-    #         'tf_op_layer_end_logits': examples['end_positions'],
-    #         'ans_type_logits': examples['answer_types'],
-    #     }
-
-    #     yield inputs, targets
 
 # Create training callbacks
 ckpt_callback = tf.keras.callbacks.ModelCheckpoint(
-    os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file), monitor='val_acc', verbose=0, save_best_only=True,
+    os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file), monitor='val_acc', verbose=0, save_best_only=False,
     save_weights_only=True, mode='max', save_freq=FLAGS.save_checkpoints_steps)
 
 tensorboard_callback = tf.keras.callbacks.TensorBoard(
     log_dir=FLAGS.log_dir, update_freq=FLAGS.log_freq)
 
-if not os.path.exists(FLAGS.log_dir):
-    os.makedirs(FLAGS.log_dir)
+# if not os.path.exists(FLAGS.log_dir):
+#     os.makedirs(FLAGS.log_dir)
 
 if not os.path.exists(FLAGS.output_dir):
     os.makedirs(FLAGS.output_dir)
@@ -583,6 +560,6 @@ if not os.path.exists(FLAGS.output_dir):
 H = model.fit(x=data_generator({'batch_size': FLAGS.train_batch_size}),
                         steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
                         epochs=FLAGS.num_train_epochs,
-                        callbacks=[ckpt_callback])
+                        callbacks=[ckpt_callback, tensorboard_callback])
 
 model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.model + '_final_model.h5'))
