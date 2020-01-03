@@ -5,7 +5,8 @@ import tensorflow as tf
 from scripts import tf2_0_baseline_w_bert_translated_to_tf2_0 as tf2baseline # Oliviera's script
 from scripts.tf2_0_baseline_w_bert_translated_to_tf2_0 import AnswerType
 from scripts import bert_modeling as modeling
-from scripts import bert_optimization as optimization
+from scripts import bert_optimization
+from scripts import albert_optimization
 from scripts import albert
 
 import tqdm
@@ -220,6 +221,8 @@ if FLAGS.do_train and FLAGS.train_num_precomputed != n_records:
     print('Changing the number of precomuted records listed to use all avaliable data.')
     FLAGS.train_num_precomputed = n_records
 
+FLAGS.train_num_precomputed = 50
+
 ### Define Functions to Build the Model ###
 
 class TDense(tf.keras.layers.Layer):
@@ -432,9 +435,15 @@ def compile_model(model, model_type, learning_rate,
         'ans_type_logits': 1.0
     }
 
+
+    if model_type.lower() == 'bert':
+        optimization = bert_optimization
+    elif model_type.lower() == 'albert':
+        optimization = albert_optimization
+
     optimizer = optimization.create_optimizer(learning_rate,
-                                              num_train_steps,
-                                              num_warmup_steps)
+                                            num_train_steps,
+                                            num_warmup_steps)
     
     model.compile(optimizer=optimizer,
                   loss=losses,
@@ -537,13 +546,29 @@ def data_generator(params):
 
     return dataset
 
+# https://stackoverflow.com/questions/49127214/keras-how-to-output-learning-rate-onto-tensorboard
+class CustomTensorBoard(tf.keras.callbacks.TensorBoard):
+    def __init__(self, log_dir, update_freq, **kwargs):
+        super().__init__(log_dir=log_dir, update_freq=update_freq, **kwargs)
+
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+
+        n_steps = self._total_batches_seen + 1
+        samples_seen = self._samples_seen + logs.get('size', 1)
+        samples_seen_since = samples_seen - self._samples_seen_at_last_write
+
+        if self.update_freq != 'epoch' and samples_seen_since >= self.update_freq:
+            logs.update({'lr_s': model.optimizer.lr(n_steps).numpy()})
+        super().on_batch_end(batch, logs)
+
 # Create training callbacks
+tensorboard_callback = CustomTensorBoard(
+    log_dir=FLAGS.log_dir, update_freq=FLAGS.log_freq)
+
 ckpt_callback = tf.keras.callbacks.ModelCheckpoint(
     os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file), monitor='val_acc', verbose=0, save_best_only=False,
     save_weights_only=True, mode='max', save_freq=FLAGS.save_checkpoints_steps)
-
-tensorboard_callback = tf.keras.callbacks.TensorBoard(
-    log_dir=FLAGS.log_dir, update_freq=FLAGS.log_freq)
 
 # if not os.path.exists(FLAGS.log_dir):
 #     os.makedirs(FLAGS.log_dir)
