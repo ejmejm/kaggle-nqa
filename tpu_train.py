@@ -527,22 +527,23 @@ def data_generator(params):
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
     dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
     
-    data_iter = iter(dataset)
-    for examples in data_iter:
-        inputs = {
-            # 'unique_id': examples['unique_ids'],
-            'input_ids': examples['input_ids'],
-            'input_mask': examples['input_mask'],
-            'segment_ids': examples['segment_ids']
-        }
+    return iter(dataset)
+    # data_iter = iter(dataset)
+    # for examples in data_iter:
+    #     inputs = {
+    #         # 'unique_id': examples['unique_ids'],
+    #         'input_ids': examples['input_ids'],
+    #         'input_mask': examples['input_mask'],
+    #         'segment_ids': examples['segment_ids']
+    #     }
 
-        targets = {
-            'tf_op_layer_start_logits': examples['start_positions'],
-            'tf_op_layer_end_logits': examples['end_positions'],
-            'ans_type_logits': examples['answer_types'],
-        }
+    #     targets = {
+    #         'tf_op_layer_start_logits': examples['start_positions'],
+    #         'tf_op_layer_end_logits': examples['end_positions'],
+    #         'ans_type_logits': examples['answer_types'],
+    #     }
 
-        yield inputs, targets
+    #     yield inputs, targets
 
 # Create training callbacks
 ckpt_callback = tf.keras.callbacks.ModelCheckpoint(
