@@ -197,6 +197,8 @@ flags.DEFINE_string('HistoryManager.hist_file', '', 'kernel')
 FLAGS = flags.FLAGS
 FLAGS(sys.argv) # Parse the flags
 
+VOCAB_SIZE = 30209
+
 ### Check that `train_num_precomputed` ###
 
 # https://stackoverflow.com/questions/9629179/python-counting-lines-in-a-huge-10gb-file-as-fast-as-possible
@@ -237,14 +239,14 @@ class TDense(tf.keras.layers.Layer):
     def build(self,input_shape):
         dtype = tf.as_dtype(self.dtype or tf.keras.backend.floatx())
         if not (dtype.is_floating or dtype.is_complex):
-            raise TypeError("Unable to build `TDense` layer with "
-                            "non-floating point (and non-complex) "
-                            "dtype %s" % (dtype,))
+          raise TypeError("Unable to build `TDense` layer with "
+                          "non-floating point (and non-complex) "
+                          "dtype %s" % (dtype,))
         input_shape = tf.TensorShape(input_shape)
         if tf.compat.dimension_value(input_shape[-1]) is None:
-            raise ValueError("The last dimension of the inputs to "
-                             "`TDense` should be defined. "
-                             "Found `None`.")
+          raise ValueError("The last dimension of the inputs to "
+                           "`TDense` should be defined. "
+                           "Found `None`.")
         last_dim = tf.compat.dimension_value(input_shape[-1])
         ### tf 2.1 rc min_ndim=3 -> min_ndim=2
         self.input_spec = tf.keras.layers.InputSpec(min_ndim=2, axes={-1: last_dim})
@@ -261,15 +263,16 @@ class TDense(tf.keras.layers.Layer):
             dtype=self.dtype,
             trainable=True)
         super(TDense, self).build(input_shape)
+
     def call(self,x):
         return tf.matmul(x,self.kernel,transpose_b=True)+self.bias
 
-def get_bert_model(config_file):
-    """Builds and returns a BERT model."""
+def get_bert_model(config_file, max_seq_length):
+    """Builds and returns a BERT"""
     config = modeling.BertConfig.from_json_file(config_file)
-    input_ids = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='input_ids')
-    input_mask = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='input_mask')
-    segment_ids = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='segment_ids')
+    input_ids = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='input_ids')
+    input_mask = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='input_mask')
+    segment_ids = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='segment_ids')
     
     bert_layer = modeling.BertModel(config=config, name='bert')
     pooled_output, sequence_output = bert_layer(input_word_ids=input_ids,
@@ -292,17 +295,21 @@ def get_bert_model(config_file):
                           [start_logits, end_logits, ans_type_logits],
                           name='bert_baseline')
 
-def get_albert_model(config_file):
-    """Create an Albert model from pretrained configuration file with vocab_size changed
-    to 30522, and optionally loads the pretrained weights.
+# this is the helper function to create the albert model
+# config_file is used to create the model
+# pretrain_ckpt is used to load the pretrain weights except for the embedding layer
+def get_albert_model(config_file, max_seq_length, vocab_size, pretrain_ckpt=None):
+    """ create albert model from pretrained configuration file with vocab_size changed to VOCAB_SIZE
+        and optionally loads the pretrained weights
     """
+    
     config = albert.AlbertConfig.from_json_file(config_file)
-    config.vocab_size = 30522
+    config.vocab_size = vocab_size
     albert_layer = albert.AlbertModel(config=config)
     
-    input_ids = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='input_ids')
-    input_mask = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='input_mask')
-    segment_ids = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='segment_ids')
+    input_ids = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='input_ids')
+    input_mask = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='input_mask')
+    segment_ids = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='segment_ids')
 
     pooled_output, sequence_output = albert_layer(input_word_ids=input_ids,
                                                     input_mask=input_mask,
@@ -323,53 +330,29 @@ def get_albert_model(config_file):
     albert_model = tf.keras.Model([input_ids, input_mask, segment_ids],
                           [start_logits, end_logits, ans_type_logits],
                           name='albert')
+    
+    # if pretrain_ckpt:
+    #     load_pretrain_weights(albert_model, config_file, pretrain_ckpt, max_seq_length)
         
     return albert_model
 
-def build_model(model_name, config_file):
-    """Build model according to model_name.
-    
-    Args:
-        model_name: ['bert', 'albert']
-        config_file: path to config file
-        pretrain_ckpt: path to pretrain checkpoint (albert only)
-    Returns:
-        the specified model
-    """
-    if model_name == 'albert':
-        model = get_albert_model(config_file)
-    elif model_name == 'bert':
-        model = get_bert_model(config_file)
-    else:
-        raise ValueError('{} is not supported'.format(model_name))
-    return model
-
-# freeze all pretrain weights of albert
-def freeze_pretrain_weights(model):
-    """Freeze pretrain weights of the albert model.
-    """
-    albert_layer = model.get_layer('albert_model')
-    albert_layer.embedding_postprocessor.trainable = False
-    albert_layer.encoder.trainable = False
-    albert_layer.pooler_transform.trainable = False
-
-# helper function to load the pretrain weights
-def load_pretrain_weights(model, config_file, ckpt_file):
-    """Loads the pretrained model's weights, except for the embedding layer,
-    into the new model, which has embedding vocab size of 30522 instead of 30000.
+def load_pretrain_weights(model, config_file, ckpt_file, max_seq_length):
+    """loads the pretrained model's weights, except for the embedding layer,
+    into the new model, which has [0:29999] loaded
     
     Args:
         model: the same model architecture as the pre-trained model except for embedding
         config_file: path to the config file to re-create the pre-trained model
         ckpt_file: path to the checkpoint of the pre-trained model
     """
+    
     # re-create the pre-trained model
     config = albert.AlbertConfig.from_json_file(config_file)
     albert_layer_pretrain = albert.AlbertModel(config=config, name='albert_pretrain')
 
-    input_ids_pretrain = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='input_ids_pretrain')
-    input_mask_pretrain = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='input_mask_pretrain')
-    segment_ids_pretrain = tf.keras.Input(shape=(FLAGS.max_seq_length,),dtype=tf.int32,name='segment_ids_pretrain')
+    input_ids_pretrain = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='input_ids_pretrain')
+    input_mask_pretrain = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='input_mask_pretrain')
+    segment_ids_pretrain = tf.keras.Input(shape=(max_seq_length,),dtype=tf.int32,name='segment_ids_pretrain')
 
     pooled_output_pretrain, sequence_output_pretrain = albert_layer_pretrain(input_word_ids=input_ids_pretrain,
                                                     input_mask=input_mask_pretrain,
@@ -386,22 +369,55 @@ def load_pretrain_weights(model, config_file, ckpt_file):
     albert_layer.embedding_postprocessor.set_weights(albert_layer_pretrain.embedding_postprocessor.get_weights())
     albert_layer.encoder.set_weights(albert_layer_pretrain.encoder.get_weights())
     albert_layer.pooler_transform.set_weights(albert_layer_pretrain.pooler_transform.get_weights())
+    # load the embedding
+    embedding_weights = albert_layer.embedding_lookup.get_weights()
+    embedding_weights_pretrain = albert_layer_pretrain.embedding_lookup.get_weights()
+    # the embedding weights are stored in a list of size 1, so we need to do [0] to get the actual weights
+    new_embedding_weights = tf.concat([embedding_weights_pretrain[0], embedding_weights[0][30000:]],axis=0)
+    # then we unsqueeze the first dimension after concat
+    new_embedding_weights = tf.expand_dims(new_embedding_weights, axis=0)
+    albert_layer.embedding_lookup.set_weights(new_embedding_weights)
+
+# function that builds bert/albert from config, optionally loads the pretrain weights for albert
+def build_model(model_name, config_file, max_seq_length, init_ckpt, vocab_size=VOCAB_SIZE):
+    """ build model according to model_name
     
-    del albert_model_pretrain
+    Args:
+        model_name: ['bert', 'albert']
+        config_file: path to config file
+        max_seq_length: the maximum length for each scan
+        pretrain_ckpt: path to pretrain checkpoint (albert only)
+        vocab_size: size of the new vocab, (albert only)
+    Returns:
+        the specified model
+    """
+
+    if model_name == 'albert':
+        model = get_albert_model(config_file=config_file, 
+                                 max_seq_length=max_seq_length, 
+                                 pretrain_ckpt=init_ckpt,
+                                 vocab_size=vocab_size)
+    elif model_name == 'bert':
+        model = get_bert_model(config_file, max_seq_length)
+        model.load_weights(init_ckpt)
+    else:
+        raise ValueError('{} is not supported'.format(model_name))
+    return model
+
+# freeze all pretrain weights of albert
+def freeze_pretrain_weights(model):
+    """Freeze pretrain weights of the albert model.
+    """
+    albert_layer = model.get_layer('albert_model')
+    albert_layer.embedding_postprocessor.trainable = False
+    albert_layer.encoder.trainable = False
+    albert_layer.pooler_transform.trainable = False
     
 def compile_model(model, model_type, learning_rate,
-                  num_train_steps, num_warmup_steps,
-                  init_checkpoint=None):
+                  num_train_steps, num_warmup_steps):
     
     if model_type.lower() not in ('bert', 'albert'):
         raise ValueError('`model_type` must be one of the following values: ["bert", "albert"]!')
-    
-    if init_checkpoint:
-        if model_type.lower() == 'bert':
-            model.load_weights(init_checkpoint)
-            print('Loaded model weights!')
-        elif model_type.lower() == 'albert':
-            load_pretrain_weights(model, FLAGS.config_file, init_checkpoint)
     
     # TODO(Edan): Add a way to have no loss on this for when there is no answer
     # Computes the loss for positions.
@@ -432,7 +448,6 @@ def compile_model(model, model_type, learning_rate,
         'tf_op_layer_end_logits': 1.0,
         'ans_type_logits': 1.0
     }
-
 
     if model_type.lower() == 'bert':
         optimization = bert_optimization
@@ -466,21 +481,25 @@ if FLAGS.use_tpu:
     strategy = tf.distribute.experimental.TPUStrategy(resolver)
 
     with strategy.scope():
-        model = build_model(FLAGS.model, FLAGS.config_file)
+        model = build_model(model_name=FLAGS.model,
+                            config_file=FLAGS.config_file,
+                            max_seq_length=FLAGS.max_seq_length,
+                            init_ckpt=FLAGS.init_checkpoint)
         compile_model(model=model,
-                        model_type=FLAGS.model,
-                        learning_rate=FLAGS.learning_rate,
-                        num_train_steps=num_train_steps,
-                        num_warmup_steps=num_warmup_steps,
-                        init_checkpoint=FLAGS.init_checkpoint)
+                      model_type=FLAGS.model,
+                      learning_rate=FLAGS.learning_rate,
+                      num_train_steps=num_train_steps,
+                      num_warmup_steps=num_warmup_steps)
 else:
-    model = build_model(FLAGS.model, FLAGS.config_file)
+    model = build_model(model_name=FLAGS.model,
+                        config_file=FLAGS.config_file,
+                        max_seq_length=FLAGS.max_seq_length,
+                        init_ckpt=FLAGS.init_checkpoint)
     compile_model(model=model,
-                model_type=FLAGS.model,
-                learning_rate=FLAGS.learning_rate,
-                num_train_steps=num_train_steps,
-                num_warmup_steps=num_warmup_steps,
-                init_checkpoint=FLAGS.init_checkpoint)
+                    model_type=FLAGS.model,
+                    learning_rate=FLAGS.learning_rate,
+                    num_train_steps=num_train_steps,
+                    num_warmup_steps=num_warmup_steps)
 
 print('Model generated.')
 model.summary()
