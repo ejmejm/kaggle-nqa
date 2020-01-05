@@ -331,8 +331,8 @@ def get_albert_model(config_file, max_seq_length, vocab_size, pretrain_ckpt=None
                           [start_logits, end_logits, ans_type_logits],
                           name='albert')
     
-    # if pretrain_ckpt:
-    #     load_pretrain_weights(albert_model, config_file, pretrain_ckpt, max_seq_length)
+    if pretrain_ckpt:
+        load_pretrain_weights(albert_model, config_file, pretrain_ckpt, max_seq_length)
         
     return albert_model
 
