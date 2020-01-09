@@ -544,24 +544,28 @@ def decode_record(record, name_to_features):
 
     return output
 
-def data_generator(params):
+def data_generator(batch_size=32, seed=42, valid_frac=0.05):
     """The actual input function."""
-
-    batch_size = params["batch_size"]
-    if 'seed' not in params:
-        params['seed'] = 42
 
     # For training, we want a lot of parallel reading and shuffling.
     # For eval, we want no shuffling and parallel reading doesn't matter.
     dataset = tf.data.TFRecordDataset(train_filenames)
     if FLAGS.do_train:
         dataset = dataset.repeat()
-        dataset = dataset.shuffle(buffer_size=5000, seed=params['seed'])
+        dataset = dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=False)
 
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
     dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
 
-    return dataset
+    if valid_frac <= 0:
+        return dataset, None
+
+    train_size = int(num_train_features * (1.0 - valid_frac))
+
+    train_dataset = dataset.take(train_size)
+    valid_dataset = dataset.skip(train_size)
+
+    return train_dataset, valid_dataset
 
 # https://stackoverflow.com/questions/49127214/keras-how-to-output-learning-rate-onto-tensorboard
 class CustomTensorBoard(tf.keras.callbacks.TensorBoard):
@@ -596,9 +600,15 @@ if not os.path.exists(FLAGS.output_dir):
 
 ### Train the Model ###
 
-H = model.fit(x=data_generator({'batch_size': FLAGS.train_batch_size}),
-                        steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
-                        epochs=FLAGS.num_train_epochs,
-                        callbacks=[ckpt_callback, tensorboard_callback])
+valid_frac = 0.05
+train_dataset, valid_dataset = data_generator(batch_size=FLAGS.train_batch_size, valid_frac=valid_frac)
+n_valid = np.ceil(FLAGS.train_num_precomputed * valid_frac)
+
+H = model.fit(x=train_dataset,
+              epochs=FLAGS.num_train_epochs,
+              steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
+              validation_data=valid_dataset,
+              validation_steps=int(np.ceil(n_valid / FLAGS.train_batch_size)),
+              callbacks=[ckpt_callback, tensorboard_callback])
 
 model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.model + '_final_model.h5'))
