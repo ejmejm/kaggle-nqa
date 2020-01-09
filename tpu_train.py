@@ -558,7 +558,6 @@ def data_generator(batch_size=32, seed=42, valid_frac=0.05):
         dataset = dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=False)
 
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
-    dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
 
     if valid_frac <= 0:
         return dataset, None
@@ -567,6 +566,9 @@ def data_generator(batch_size=32, seed=42, valid_frac=0.05):
 
     train_dataset = dataset.take(train_size)
     valid_dataset = dataset.skip(train_size)
+
+    train_dataset = train_dataset.batch(batch_size=batch_size, drop_remainder=False)
+    valid_dataset = valid_dataset.batch(batch_size=batch_size, drop_remainder=False)
 
     return train_dataset, valid_dataset
 
