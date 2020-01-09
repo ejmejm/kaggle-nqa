@@ -560,6 +560,7 @@ def data_generator(batch_size=32, seed=42, valid_frac=0.05):
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
 
     if valid_frac <= 0:
+        dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
         return dataset, None
 
     train_size = int(num_train_features * (1.0 - valid_frac))
