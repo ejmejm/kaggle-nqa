@@ -332,8 +332,11 @@ def get_albert_model(config_file, max_seq_length, vocab_size, pretrain_ckpt=None
                           name='albert')
     
     if pretrain_ckpt:
-        load_pretrain_weights(albert_model, config_file, pretrain_ckpt, max_seq_length)
-        
+        if 'pretrain' in pretrain_ckpt:
+            load_pretrain_weights(albert_model, config_file, pretrain_ckpt, max_seq_length)
+        else:
+            albert_model.load_weights(pretrain_ckpt)
+
     return albert_model
 
 def load_pretrain_weights(model, config_file, ckpt_file, max_seq_length):
@@ -611,4 +614,4 @@ H = model.fit(x=train_dataset,
               validation_steps=int(np.ceil(n_valid / FLAGS.train_batch_size)),
               callbacks=[ckpt_callback, tensorboard_callback])
 
-model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.model + '_final_model.h5'))
+model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file + '.final'))
