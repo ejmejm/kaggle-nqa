@@ -7,7 +7,7 @@ python3 tpu_train.py \
 --config_file="$MODELS_DIR/albert_$ALBERT_SIZE/config.json" \
 --vocab_file="$MODELS_DIR/albert_$ALBERT_SIZE/vocab/modified-30k-clean.model" \
 --output_dir="output/" \
---train_precomputed_file="$DATA_DIR/albert_train_small.tf_record" \
+--train_precomputed_file="$DATA_DIR/albert_train.tf_record" \
 --train_num_precomputed=-1 \
 --output_checkpoint_file="albert_finetuned.h5" \
 --save_checkpoints_steps=5000 \

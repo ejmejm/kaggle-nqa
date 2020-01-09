@@ -512,7 +512,6 @@ model.summary()
 train_filenames = tf.io.gfile.glob(FLAGS.train_precomputed_file)
 
 name_to_features = {
-    "unique_ids": tf.io.FixedLenFeature([], tf.int64),
     "input_ids": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
     "input_mask": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
     "segment_ids": tf.io.FixedLenFeature([FLAGS.max_seq_length], tf.int64),
