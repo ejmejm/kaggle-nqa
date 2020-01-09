@@ -605,15 +605,15 @@ if not os.path.exists(FLAGS.output_dir):
 
 ### Train the Model ###
 
-valid_frac = 0.05
+valid_frac = 0 #0.05
 train_dataset, valid_dataset = data_generator(batch_size=FLAGS.train_batch_size, valid_frac=valid_frac)
 n_valid = np.ceil(FLAGS.train_num_precomputed * valid_frac)
 
 H = model.fit(x=train_dataset,
               epochs=FLAGS.num_train_epochs,
               steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
-              validation_data=valid_dataset,
-              validation_steps=int(np.ceil(n_valid / FLAGS.train_batch_size)),
+              # validation_data=valid_dataset,
+              # validation_steps=int(np.ceil(n_valid / FLAGS.train_batch_size)),
               callbacks=[ckpt_callback, tensorboard_callback])
 
 model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file + '.final'))
