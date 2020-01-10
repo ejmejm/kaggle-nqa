@@ -552,14 +552,12 @@ def data_generator(batch_size=32, seed=42, valid_frac=0.05):
     # For training, we want a lot of parallel reading and shuffling.
     # For eval, we want no shuffling and parallel reading doesn't matter.
     dataset = tf.data.TFRecordDataset(train_filenames)
-    if FLAGS.do_train:
-        dataset = dataset.repeat()
-        dataset = dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=False)
-
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
 
     if valid_frac <= 0:
+        dataset = dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=True)
         dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
+        dataset = dataset.repeat()
         return dataset, None
 
     train_size = int(num_train_features * (1.0 - valid_frac))
@@ -569,6 +567,12 @@ def data_generator(batch_size=32, seed=42, valid_frac=0.05):
 
     train_dataset = train_dataset.batch(batch_size=batch_size, drop_remainder=False)
     valid_dataset = valid_dataset.batch(batch_size=batch_size, drop_remainder=False)
+
+    train_dataset = train_dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=True)
+    valid_dataset = valid_dataset.shuffle(buffer_size=5000, seed=seed, reshuffle_each_iteration=True)
+
+    train_dataset = train_dataset.repeat()
+    valid_dataset = valid_dataset.repeat()
 
     return train_dataset, valid_dataset
 
@@ -605,15 +609,15 @@ if not os.path.exists(FLAGS.output_dir):
 
 ### Train the Model ###
 
-valid_frac = 0 #0.05
+valid_frac = 0.02
 train_dataset, valid_dataset = data_generator(batch_size=FLAGS.train_batch_size, valid_frac=valid_frac)
 n_valid = np.ceil(FLAGS.train_num_precomputed * valid_frac)
 
 H = model.fit(x=train_dataset,
               epochs=FLAGS.num_train_epochs,
-              steps_per_epoch=FLAGS.train_num_precomputed // FLAGS.train_batch_size,
-              # validation_data=valid_dataset,
-              # validation_steps=int(np.ceil(n_valid / FLAGS.train_batch_size)),
+              steps_per_epoch=int(np.ceil((FLAGS.train_num_precomputed - n_valid) / FLAGS.train_batch_size)),
+              validation_data=valid_dataset,
+              validation_steps=int(np.ceil(n_valid / FLAGS.train_batch_size)),
               callbacks=[ckpt_callback, tensorboard_callback])
 
 model.save_weights(os.path.join(FLAGS.output_dir, FLAGS.output_checkpoint_file + '.final'))

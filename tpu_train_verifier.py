@@ -192,7 +192,9 @@ flags.DEFINE_string(
 flags.DEFINE_boolean("logtostderr", True, "Logs to stderr")
 flags.DEFINE_boolean("undefok", True, "it's okay to be undefined")
 flags.DEFINE_string('f', '', 'kernel')
-flags.DEFINE_string('HistoryManager.hist_file', '', 'kernel')
+flags.DEFINE_string('HistoryManager.hist_file', '', 'k
+￼
+')
 
 FLAGS = flags.FLAGS
 FLAGS(sys.argv) # Parse the flags
@@ -543,12 +545,10 @@ def data_generator(batch_size=32, seed=42, valid_frac=0.05):
     # For training, we want a lot of parallel reading and shuffling.
     # For eval, we want no shuffling and parallel reading doesn't matter.
     dataset = tf.data.TFRecordDataset(train_filenames)
-    if FLAGS.do_train:
-        dataset = dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=False)
-
     dataset = dataset.map(lambda r: decode_record(r, name_to_features))
 
     if valid_frac <= 0:
+        dataset = dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=True)
         dataset = dataset.batch(batch_size=batch_size, drop_remainder=False)
         dataset = dataset.repeat()
         return dataset, None
@@ -560,6 +560,9 @@ def data_generator(batch_size=32, seed=42, valid_frac=0.05):
 
     train_dataset = train_dataset.batch(batch_size=batch_size, drop_remainder=False)
     valid_dataset = valid_dataset.batch(batch_size=batch_size, drop_remainder=False)
+
+    train_dataset = train_dataset.shuffle(buffer_size=20000, seed=seed, reshuffle_each_iteration=True)
+    valid_dataset = valid_dataset.shuffle(buffer_size=5000, seed=seed, reshuffle_each_iteration=True)
 
     train_dataset = train_dataset.repeat()
     valid_dataset = valid_dataset.repeat()
