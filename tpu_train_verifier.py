@@ -438,6 +438,7 @@ def compile_model(model, model_type, learning_rate,
         #     tf.cast(labels, tf.int32), depth=2, dtype=tf.float32)
         labels = tf.cast(labels, tf.float32)
         log_probs = tf.nn.log_softmax(logits, axis=-1)
+        log_probs = tf.clip(log_probs, -100.0, 0.0)
         loss = -tf.reduce_mean(
             input_tensor=tf.reduce_sum(input_tensor=labels * log_probs, axis=-1))
         return loss
