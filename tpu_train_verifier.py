@@ -192,9 +192,7 @@ flags.DEFINE_string(
 flags.DEFINE_boolean("logtostderr", True, "Logs to stderr")
 flags.DEFINE_boolean("undefok", True, "it's okay to be undefined")
 flags.DEFINE_string('f', '', 'kernel')
-flags.DEFINE_string('HistoryManager.hist_file', '', 'k
-￼
-')
+flags.DEFINE_string('HistoryManager.hist_file', '', 'kernel')
 
 FLAGS = flags.FLAGS
 FLAGS(sys.argv) # Parse the flags
