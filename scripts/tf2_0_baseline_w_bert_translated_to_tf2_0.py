@@ -563,13 +563,13 @@ def read_nq_entry(entry, is_training):
   return examples
 
 
-def convert_examples_to_features(examples, tokenizer, is_training, output_fn):
+def convert_examples_to_features(examples, tokenizer, is_training, output_fn, lowercase=False):
   """Converts a list of NqExamples into InputFeatures."""
   num_spans_to_ids = collections.defaultdict(list)
 
   for example in examples:
     example_index = example.example_id
-    features = convert_single_example(example, tokenizer, is_training)
+    features = convert_single_example(example, tokenizer, is_training, lowercase=lowercase)
     num_spans_to_ids[len(features)].append(example.qas_id)
 
     for feature in features:
@@ -616,15 +616,17 @@ def check_is_max_context(doc_spans, cur_span_index, position):
   return cur_span_index == best_span_index
 
 
-def convert_single_example(example, tokenizer, is_training):
+def convert_single_example(example, tokenizer, is_training, lowercase=False):
   """Converts a single NqExample into a list of InputFeatures."""
   tok_to_orig_index = []
   orig_to_tok_index = []
   all_doc_tokens = []
   features = []
   for (i, token) in enumerate(example.doc_tokens):
+    if lowercase and not (token.startswith('[') and token.endswith(']')):
+      example.doc_tokens[i] = token.lower()
     orig_to_tok_index.append(len(all_doc_tokens))
-    sub_tokens = tokenize(tokenizer, token)
+    sub_tokens = tokenize(tokenizer, example.doc_tokens[i])
     tok_to_orig_index.extend([i] * len(sub_tokens))
     all_doc_tokens.extend(sub_tokens)
 

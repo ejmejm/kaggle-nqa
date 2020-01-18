@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from scripts import albert
 from scripts import bert_modeling as modeling
+from scripts import tf2_0_baseline_w_bert_translated_to_tf2_0 as tf2baseline
 
 VOCAB_SIZE = 30209
 
