@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from scripts import albert
 from scripts import bert_modeling as modeling
-from scripts import tf2_0_baseline_w_bert_translated_to_tf2_0 as tf2baseline
+from scripts import nqa_utils as nqa
 
 VOCAB_SIZE = 30209
 
@@ -68,7 +68,7 @@ def get_bert_model(config_file, max_seq_length):
     start_logits = tf.squeeze(start_logits, axis=-1, name='start_logits')
     end_logits = tf.squeeze(end_logits, axis=-1, name='end_logits')
     
-    ans_type_layer = TDense(len(tf2baseline.AnswerType), name='ans_type_logits')
+    ans_type_layer = TDense(len(nqa.AnswerType), name='ans_type_logits')
     ans_type_logits = ans_type_layer(pooled_output)
     
     return tf.keras.Model([input_ids, input_mask, segment_ids],
@@ -104,7 +104,7 @@ def get_albert_model(config_file, max_seq_length, vocab_size, pretrain_ckpt=None
     start_logits = tf.squeeze(start_logits, axis=-1, name='start_logits')
     end_logits = tf.squeeze(end_logits, axis=-1, name='end_logits')
     
-    ans_type_layer = TDense(len(tf2baseline.AnswerType), name='ans_type_logits')
+    ans_type_layer = TDense(len(nqa.AnswerType), name='ans_type_logits')
     ans_type_logits = ans_type_layer(pooled_output)
     
     albert_model = tf.keras.Model([input_ids, input_mask, segment_ids],
