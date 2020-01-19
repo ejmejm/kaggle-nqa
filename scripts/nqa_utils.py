@@ -847,7 +847,7 @@ def convert_partial_example(example, start_idx, end_idx, tokenizer, is_training,
     # We can have documents that are longer than the maximum sequence length.
     # To deal with this we do a sliding window approach, where we take chunks
     # of up to our max length with a stride of `doc_stride`.
-    _DocSpan = namedtuple(  # pylint: disable=invalid-name
+    _DocSpan = collections.namedtuple(  # pylint: disable=invalid-name
         "DocSpan", ["start", "length"])
     doc_spans = []
     start_offset = 0
@@ -1527,7 +1527,6 @@ def compute_answers(preds, candidates_dict, features,
         'ans_type_conf_weight': 0.4,
         'start_pos_conf_weight': 0.3,
         'end_pos_conf_weight': 0.3,
-        'conf_bias': 0.0,
         'conf_threshold': 0.98
     }
     
@@ -1591,8 +1590,7 @@ def compute_answers(preds, candidates_dict, features,
                 entry['ans_type_prob'] = entry['ans_type_probs'][entry['ans_type_idx']]
 
                 # Calculating probability of the chosen answer type
-                entry['prob'] = weights['conf_bias'] + \
-                                entry['start_pos_prob'] * weights['start_pos_conf_weight'] + \
+                entry['prob'] = entry['start_pos_prob'] * weights['start_pos_conf_weight'] + \
                                 entry['end_pos_prob'] * weights['end_pos_conf_weight'] + \
                                 entry['ans_type_prob'] * weights['ans_type_conf_weight']
 
