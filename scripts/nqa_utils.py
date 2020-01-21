@@ -12,7 +12,6 @@ import re
 import enum
 
 from scripts import bert_modeling as modeling
-from scripts import bert_optimization as optimization
 from scripts import bert_tokenization as tokenization
 
 import absl
@@ -1254,28 +1253,32 @@ def read_candidates(input_pattern, n=-1, from_back=False):
 
 
 def raw_data_generator(path, chunk_size=1000, from_back=False):
-        """Reads raw JSON examples to a DataFrame"""
-        curr_pos = 0
-        last_line = False
-        with open(path, 'rt') as f:
-                
-                n_skip = 0
-                if from_back and chunk_size > 0:
-                    n_skip = N_TRAIN_EXAMPLES - chunk_size
+    """Reads raw JSON examples to a DataFrame"""
+    curr_pos = 0
+    last_line = False
+    with open(path, 'rt') as f:
+        n_skip = 0
+        if from_back and chunk_size > 0:
+            n_skip = N_TRAIN_EXAMPLES - chunk_size
 
-                for _ in range(n_skip):
-                    f.readline()
-            
-                while not last_line:
-                        df = []
-                        for i in range(curr_pos, curr_pos+chunk_size):
-                                line = f.readline()
-                                if line is None:
-                                        last_line = True
-                                        break
-                                df.append(json.loads(line))
-                        curr_pos = i + 1
-                        yield pd.DataFrame(df)
+        for _ in range(n_skip):
+            f.readline()
+
+        while not last_line:
+            df = []
+            i = curr_pos
+            for i in range(curr_pos, curr_pos+chunk_size):
+                line = f.readline()
+                if line is None:
+                    last_line = True
+                    break
+                try:
+                    df.append(json.loads(line))
+                except:
+                    last_line = True
+                    break
+            curr_pos = i + 1
+            yield pd.DataFrame(df)
 
 
 def decode_record(record, name_to_features):
@@ -1651,7 +1654,7 @@ def compute_answers(preds, candidates_dict, features,
 
                 valid_entries.append(entry)
             except:
-                warning.warn("Unexpected while parsing features:", sys.exc_info()[0])
+                warnings.warn("Unexpected while parsing features: {}".format(sys.exc_info()[0]))
 
         long_answer = None
         short_answer = None

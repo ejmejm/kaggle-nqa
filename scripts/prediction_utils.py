@@ -33,8 +33,18 @@ def grid_search_weights(raw_examples, preds, candidates_dict,
     results = {}
     for weight_vals in tqdm.tqdm(combinations):
         tmp_weights = {}
+        
+        weight_sum = 0
+        threshold = 0
         for weight_name, weight_val in zip(weight_ranges.keys(), weight_vals):
                 tmp_weights[weight_name] = weight_val
+                if 'weight' in weight_name:
+                    weight_sum += weight_val
+                elif weight_name == 'conf_threshold':
+                    threshold = weight_val
+
+        if weight_sum < threshold or weight_sum > threshold * 2:
+            continue
                 
         tmp_answers = nqa_utils.compute_answers(preds, 
                                                 candidates_dict, 
@@ -45,7 +55,7 @@ def grid_search_weights(raw_examples, preds, candidates_dict,
                                                 invalid_input_ids=invalid_input_ids)
         
         if pre_answers:
-            tmp_answers = dict(tmp_answers.items() + pre_answers.items())
+            tmp_answers = dict(list(pre_answers.items()) + list(tmp_answers.items()))
         
         f1 = calc_f1(raw_examples, tmp_answers)
         results[weight_vals] = f1
